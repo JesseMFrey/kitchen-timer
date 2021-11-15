@@ -1,0 +1,198 @@
+#!/usr/bin/env python
+import gi
+import re
+import sounddevice
+
+from datetime import timedelta
+from soundfile import read as wav_read
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+from gi.repository import GLib
+#from gi.repository import GObject
+
+#GObject.signal_new(
+                    #"timer_elapsed",
+                    #Gtk.Window,
+                    #GObject.SignalFlags.RUN_LAST,
+                    #GObject.TYPE_BOOLEAN,
+                    #()
+                   #)
+
+def parse_time(tstr):
+    m = re.match(r'(?:(?P<hours>\d+)h)?\s*' +       #optionally match hours
+                 r'(?:(?P<minutes>\d+)m)?\s*' +     #optionally match minutes
+                 r'(?:(?P<seconds>\d+)s)?' +        #optionally match seconds
+                 r'(?<=\d(?:h|m|s))',               #make sure that something was matched
+                 tstr
+                 )
+
+    if not m:
+        raise ValueError(f'Could not parse \'{tstr}\'')
+
+    args = {}
+    for g in ('hours', 'minutes', 'seconds'):
+        val = m.group(g)
+        if val:
+            args[g] = int(val)
+    
+    return timedelta(**args)
+
+class TimerWindow(Gtk.Window):
+    def __init__(self):
+        Gtk.Window.__init__(self, title="Timer")
+
+        #load audio for alarm
+        self.alarm_audio, self.alarm_fs = wav_read('alarm.wav')
+
+        grid = Gtk.Grid(column_homogeneous=True, column_spacing=10, row_spacing=10)
+
+        self.remain_label = Gtk.Label()
+        self.remain_label.set_vexpand(True)
+        self.remain_label.set_hexpand(True)
+        grid.attach(self.remain_label, 0, 0, 3, 1)
+
+        done_button = Gtk.Button(label='Done')
+        done_button.set_vexpand(False)
+        done_button.connect('clicked', Gtk.main_quit)
+        grid.attach(done_button, 0, 1, 1, 1)
+
+        p1_button = Gtk.Button(label='+1m')
+        p1_button.set_vexpand(False)
+        p1_button.connect('clicked', lambda arg : self.add_elapsed_min(1))
+        grid.attach(p1_button, 1, 1, 1, 1)
+
+        p5_button = Gtk.Button(label='+5m')
+        p5_button.set_vexpand(False)
+        p5_button.connect('clicked', lambda arg : self.add_elapsed_min(5))
+        grid.attach(p5_button, 2, 1, 1, 1)
+
+        self.add(grid)
+
+    def get_time(self):
+        timeout_dialog = TimeoutDialog(self)
+        response = timeout_dialog.run()
+
+        print(f'Response : {response}')
+
+        if response in (Gtk.ResponseType.OK,
+                        Gtk.ResponseType.YES,
+                        Gtk.ResponseType.ACCEPT,
+                        Gtk.ResponseType.APPLY,
+                        ):
+            time_str = timeout_dialog.entry.get_text()
+
+            print(f'Time : {time_str}')
+        
+        timeout_dialog.destroy()
+
+        if response in (Gtk.ResponseType.CANCEL,
+                        Gtk.ResponseType.DELETE_EVENT,
+                        Gtk.ResponseType.CLOSE,
+                        Gtk.ResponseType.REJECT,
+                        Gtk.ResponseType.NONE,
+                        Gtk.ResponseType.NO,
+                        ):
+            return False
+
+        time = parse_time(time_str)
+
+        self.start_timer(time)
+
+        return True
+
+
+	# Initialize Timer
+    def start_timer(self, time):
+        self.original_time =time
+        self.remaining_time = time
+        #  this takes 2 args: (how often to update in millisec, the method to run)
+        GLib.timeout_add_seconds(1, self.update_remaining)
+
+    def add_elapsed_min(self, add_min):
+        self.remaining_time += timedelta(minutes=add_min)
+
+        #check if alarm should be playing
+        if self.remaining_time > timedelta(seconds=0):
+            sounddevice.stop()
+
+    def update_remaining(self):
+        self.remaining_time -= timedelta(seconds=1)
+
+        if self.remaining_time < timedelta(seconds=0):
+            time = timedelta(seconds=-1*self.remaining_time.total_seconds())
+            tm_str = f'-{time}'
+        else:
+            tm_str = f' {self.remaining_time}'
+
+        print(f'Remaining time : {tm_str}')
+
+        self.remain_label.set_text(tm_str)
+
+        if self.remaining_time == timedelta(seconds=0):
+            #self.emit('timer_elapsed')
+
+            #play alarm sound
+            sounddevice.play(
+                                self.alarm_audio,
+                                samplerate=self.alarm_fs,
+                                blocking=False,
+                                loop=True
+                            )
+
+        return True
+
+    def show_elapsed(self, info):
+        print(f'Extra arg : {info}')
+        elapsed = ElapsedDialog(self)
+        elapsed.run()
+        elapsed.destroy()
+
+
+class ElapsedDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        super().__init__(title="Timer Elapsed", transient_for=parent, flags=0)
+        self.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            'add 1m', 1,
+            'add 5m', 5,
+        )
+
+        self.set_default_size(150, 100)
+
+        box = self.get_content_area()
+
+        label = Gtk.Label(label='Timer has elapsed!')
+        box.add(label)
+
+        self.show_all()
+
+class TimeoutDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        super().__init__(title="Timer Timeout", transient_for=parent, flags=0)
+        self.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK
+        )
+
+        self.set_default_size(150, 100)
+
+        box = self.get_content_area()
+
+        label = Gtk.Label(label='Enter timeout :')
+        box.add(label)
+
+        self.entry = Gtk.Entry()
+        self.entry.set_text("")
+
+        box.add(self.entry)
+
+        self.show_all()
+
+
+win = TimerWindow()
+win.connect("destroy", Gtk.main_quit)
+win.show_all()
+if win.get_time():
+    Gtk.main()
+
+
