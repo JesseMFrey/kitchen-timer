@@ -183,6 +183,7 @@ class TimeoutDialog(Gtk.Dialog):
 
         self.entry = Gtk.Entry()
         self.entry.set_text("")
+        self.entry.connect('activate',lambda w : self.response(Gtk.ResponseType.OK))
 
         box.add(self.entry)
 
