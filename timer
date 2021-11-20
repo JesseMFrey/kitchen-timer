@@ -106,11 +106,14 @@ class TimerWindow(Gtk.Window):
     def start_timer(self, time):
         self.original_time =time
         self.remaining_time = time
+        self.display_remaining()
         #  this takes 2 args: (how often to update in millisec, the method to run)
         GLib.timeout_add_seconds(1, self.update_remaining)
 
     def add_elapsed_min(self, add_min):
         self.remaining_time += timedelta(minutes=add_min)
+
+        self.display_remaining()
 
         #check if alarm should be playing
         if self.remaining_time > timedelta(seconds=0):
@@ -118,16 +121,7 @@ class TimerWindow(Gtk.Window):
 
     def update_remaining(self):
         self.remaining_time -= timedelta(seconds=1)
-
-        if self.remaining_time < timedelta(seconds=0):
-            time = timedelta(seconds=-1*self.remaining_time.total_seconds())
-            tm_str = f'-{time}'
-        else:
-            tm_str = f' {self.remaining_time}'
-
-        print(f'Remaining time : {tm_str}')
-
-        self.remain_label.set_text(tm_str)
+        self.display_remaining()
 
         if self.remaining_time == timedelta(seconds=0):
             #self.emit('timer_elapsed')
@@ -141,6 +135,17 @@ class TimerWindow(Gtk.Window):
                             )
 
         return True
+
+    def display_remaining(self):
+        if self.remaining_time < timedelta(seconds=0):
+            time = timedelta(seconds=-1*self.remaining_time.total_seconds())
+            tm_str = f'-{time}'
+        else:
+            tm_str = f' {self.remaining_time}'
+
+        print(f'Remaining time : {tm_str}')
+
+        self.remain_label.set_text(tm_str)
 
     def show_elapsed(self, info):
         print(f'Extra arg : {info}')
