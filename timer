@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import argparse
 import gi
 import re
 import sounddevice
@@ -40,8 +42,10 @@ def parse_time(tstr):
     return timedelta(**args)
 
 class TimerWindow(Gtk.Window):
-    def __init__(self):
+    def __init__(self, debug=False):
         Gtk.Window.__init__(self, title="Timer")
+
+        self.debug = debug
 
         #load audio for alarm
         self.alarm_audio, self.alarm_fs = wav_read('alarm.wav')
@@ -81,7 +85,8 @@ class TimerWindow(Gtk.Window):
         timeout_dialog = TimeoutDialog(self)
         response = timeout_dialog.run()
 
-        print(f'Response : {response}')
+        if self.debug:
+            print(f'Response : {response}')
 
         if response in (Gtk.ResponseType.OK,
                         Gtk.ResponseType.YES,
@@ -90,7 +95,8 @@ class TimerWindow(Gtk.Window):
                         ):
             time_str = timeout_dialog.entry.get_text()
 
-            print(f'Time : {time_str}')
+            if self.debug:
+                print(f'Time : {time_str}')
         
         timeout_dialog.destroy()
 
@@ -151,12 +157,12 @@ class TimerWindow(Gtk.Window):
         else:
             tm_str = f' {self.remaining_time}'
 
-        print(f'Remaining time : {tm_str}')
+        if self.debug:
+            print(f'Remaining time : {tm_str}')
 
         self.remain_label.set_text(tm_str)
 
     def show_elapsed(self, info):
-        print(f'Extra arg : {info}')
         elapsed = ElapsedDialog(self)
         elapsed.run()
         elapsed.destroy()
@@ -202,18 +208,28 @@ class TimeoutDialog(Gtk.Dialog):
 
         self.show_all()
 
-css_provider = Gtk.CssProvider()
-css_provider.load_from_path('style.css')
-context = Gtk.StyleContext()
-screen = Gdk.Screen.get_default()
-context.add_provider_for_screen(screen, css_provider,
-                                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+def main():
+
+    parser = argparse.ArgumentParser(description='Kitchen timer program')
+    parser.add_argument('--debug', action='store_true',
+            help='Print extra things')
+
+    args = parser.parse_args()
+
+    css_provider = Gtk.CssProvider()
+    css_provider.load_from_path('style.css')
+    context = Gtk.StyleContext()
+    screen = Gdk.Screen.get_default()
+    context.add_provider_for_screen(screen, css_provider,
+                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 
-win = TimerWindow()
-win.connect("destroy", Gtk.main_quit)
-win.show_all()
-if win.get_time():
-    Gtk.main()
+    win = TimerWindow(debug=args.debug)
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    if win.get_time():
+        Gtk.main()
 
+if __name__ == '__main__':
+    main()
 
