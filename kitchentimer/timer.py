@@ -8,6 +8,12 @@ import sounddevice
 from datetime import timedelta
 from soundfile import read as wav_read
 
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 from gi.repository import Gdk
@@ -47,8 +53,9 @@ class TimerWindow(Gtk.Window):
 
         self.debug = debug
 
-        #load audio for alarm
-        self.alarm_audio, self.alarm_fs = wav_read('alarm.wav')
+        with pkg_resources.path('kitchentimer','alarm.wav') as alarm:
+            #load audio for alarm
+            self.alarm_audio, self.alarm_fs = wav_read(alarm)
 
         grid = Gtk.Grid(column_homogeneous=True, column_spacing=10, row_spacing=10)
 
@@ -217,7 +224,8 @@ def main():
     args = parser.parse_args()
 
     css_provider = Gtk.CssProvider()
-    css_provider.load_from_path('style.css')
+    with pkg_resources.path('kitchentimer','style.css') as css_file:
+        css_provider.load_from_path(str(css_file))
     context = Gtk.StyleContext()
     screen = Gdk.Screen.get_default()
     context.add_provider_for_screen(screen, css_provider,
