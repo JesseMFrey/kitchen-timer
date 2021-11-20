@@ -8,6 +8,7 @@ from soundfile import read as wav_read
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import GLib
 #from gi.repository import GObject
 
@@ -48,6 +49,7 @@ class TimerWindow(Gtk.Window):
         grid = Gtk.Grid(column_homogeneous=True, column_spacing=10, row_spacing=10)
 
         self.remain_label = Gtk.Label()
+        self.remain_label.set_name('time_text')
         self.remain_label.set_vexpand(True)
         self.remain_label.set_hexpand(True)
         grid.attach(self.remain_label, 0, 0, 3, 1)
@@ -55,16 +57,22 @@ class TimerWindow(Gtk.Window):
         done_button = Gtk.Button(label='Done')
         done_button.set_vexpand(False)
         done_button.connect('clicked', Gtk.main_quit)
+        context = done_button.get_style_context()
+        context.add_class('botbutton')
         grid.attach(done_button, 0, 1, 1, 1)
 
         p1_button = Gtk.Button(label='+1m')
         p1_button.set_vexpand(False)
         p1_button.connect('clicked', lambda arg : self.add_elapsed_min(1))
+        context = p1_button.get_style_context()
+        context.add_class('botbutton')
         grid.attach(p1_button, 1, 1, 1, 1)
 
         p5_button = Gtk.Button(label='+5m')
         p5_button.set_vexpand(False)
         p5_button.connect('clicked', lambda arg : self.add_elapsed_min(5))
+        context = p5_button.get_style_context()
+        context.add_class('botbutton')
         grid.attach(p5_button, 2, 1, 1, 1)
 
         self.add(grid)
@@ -193,6 +201,13 @@ class TimeoutDialog(Gtk.Dialog):
         box.add(self.entry)
 
         self.show_all()
+
+css_provider = Gtk.CssProvider()
+css_provider.load_from_path('style.css')
+context = Gtk.StyleContext()
+screen = Gdk.Screen.get_default()
+context.add_provider_for_screen(screen, css_provider,
+                                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 
 win = TimerWindow()

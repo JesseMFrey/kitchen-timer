@@ -1,0 +1,14 @@
+
+#time_text {
+    font-size: 600%;
+    font-weight: bold;
+    min-width: 6em;
+    padding-bottom: 5mm;
+    padding-top: 3mm;
+}
+
+.botbutton {
+    font-size: 120%;
+    font-weight: bolder;
+    min-height : 3em;
+}
